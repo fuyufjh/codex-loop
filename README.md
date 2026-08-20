@@ -69,6 +69,5 @@ Optional environment variables:
 npm test
 
 # Start a temporary app-server and call list_timers through a real Codex MCP client.
-set_proxy
 npm run test:codex
 ```

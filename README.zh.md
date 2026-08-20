@@ -69,6 +69,5 @@ Codex 0.148.0 会把当前 thread ID 放在 MCP tool call 的 `_meta.threadId` �
 npm test
 
 # 启动临时 app-server，通过真实 Codex MCP 客户端调用 list_timers
-set_proxy
 npm run test:codex
 ```
