@@ -1,72 +1,74 @@
-# Codex Timer MCP
+# Codex Loop
 
-一个面向短周期任务的内存定时器 MCP。它在定时器到期时调用 Codex app-server 的实验性 `thread/queue/add`，把一条新用户消息发送回创建定时器的 Codex thread。
+English | [简体中文](README.zh.md)
 
-设计目标是“10 分钟后提醒我”或“每 1 分钟检查一次”这类任务。所有状态仅存在于 MCP 进程内；MCP、Codex 或 app-server 重启后，尚未触发的定时器会消失。
+Codex Loop is an in-memory timer MCP for short-cycle tasks. When a timer fires, it calls the experimental Codex app-server method `thread/queue/add` to send a new user message back to the Codex thread that created the timer.
 
-## 要求
+It is designed for requests such as “remind me in 10 minutes” or “check every minute.” All state lives only in the MCP process; pending timers are lost if the MCP, Codex, or app-server restarts.
 
-- Node.js 20 或更新版本；不需要安装 npm 依赖。
-- Codex CLI 0.148.0 或更新版本。
-- 当前 Codex 使用本地 app-server daemon，并允许本地 MCP 进程访问其 Unix socket。
+## Requirements
 
-## 配置
+- Node.js 20 or later; no npm dependencies are required.
+- Codex CLI 0.148.0 or later.
+- Codex must use the local app-server daemon and allow the local MCP process to access its Unix socket.
 
-使用绝对路径注册 STDIO MCP：
+## Configuration
+
+Register the STDIO MCP using an absolute path:
 
 ```bash
-codex mcp add codex-timer -- node /absolute/path/to/codex-loop-skill/bin/codex-timer-mcp.mjs
+codex mcp add codex-timer -- node /absolute/path/to/codex-loop/bin/codex-timer-mcp.mjs
 ```
 
-也可以直接写入 Codex 配置：
+Alternatively, add it directly to the Codex configuration:
 
 ```toml
 [mcp_servers.codex-timer]
 command = "node"
-args = ["/absolute/path/to/codex-loop-skill/bin/codex-timer-mcp.mjs"]
+args = ["/absolute/path/to/codex-loop/bin/codex-timer-mcp.mjs"]
 tool_timeout_sec = 10
 ```
 
-配置后需要重启 Codex 客户端或刷新 MCP server。
+Restart the Codex client or refresh its MCP servers after updating the configuration.
 
 ## Tools
 
-- `schedule_once(delay_seconds, message)`：延迟一次发送。
-- `schedule_interval(interval_seconds, message)`：按固定间隔重复发送，第一次在一个完整间隔后触发。
-- `list_timers()`：列出当前 thread 的活动定时器。
-- `cancel_timer(timer_id)`：取消当前 thread 的定时器。
+- `schedule_once(delay_seconds, message)`: send one message after a delay.
+- `schedule_interval(interval_seconds, message)`: send a message repeatedly at a fixed interval; the first message is sent after one full interval.
+- `list_timers()`: list active timers for the current thread.
+- `cancel_timer(timer_id)`: cancel a timer owned by the current thread.
 
-示例请求：
+Example requests:
 
 ```text
-10 分钟后提醒我检查训练任务。
-每 1 分钟让我检查一次服务状态。
-列出当前对话的定时器。
-取消刚才创建的定时器。
+Remind me to check the training job in 10 minutes.
+Have me check the service status every minute.
+List the timers in this conversation.
+Cancel the timer I just created.
 ```
 
-Codex 0.148.0 会把当前 thread ID 放在 MCP tool call 的 `_meta.threadId` 中。本 MCP 只信任该元数据，不允许工具参数指定其他 thread。
+Codex 0.148.0 supplies the current thread ID in `_meta.threadId` on each MCP tool call. This MCP trusts only that metadata and does not allow tool arguments to target another thread.
 
-## 行为与限制
+## Behavior and limitations
 
-- 单个延迟或间隔必须在 1 秒到 24 小时之间。
-- 到期时如果 thread 空闲，消息会立即开始一个新 turn；如果 thread 正忙，消息进入 FIFO 队列等待空闲。
-- 重复任务不会等待该消息对应的 Codex turn 完成。若 turn 长于间隔，队列可能积压。
-- `cancel_timer` 只取消未来触发；已经提交给 Codex 队列的消息不会撤回。
-- 投递失败不会重试。重复定时器会在下一个间隔继续尝试。
-- `thread/queue/add` 是 Codex experimental API。
+- Each delay or interval must be between 1 second and 24 hours.
+- If the thread is idle when a timer fires, the message starts a new turn immediately. If the thread is busy, the message enters a FIFO queue and waits for the thread to become idle.
+- A recurring timer does not wait for the Codex turn created by its previous message to finish. Messages can accumulate if a turn takes longer than the interval.
+- `cancel_timer` prevents future deliveries only; it cannot retract messages already submitted to the Codex queue.
+- Failed deliveries are not retried. A recurring timer will attempt delivery again at its next interval.
+- `thread/queue/add` is an experimental Codex API.
 
-可选环境变量：
+Optional environment variables:
 
-- `CODEX_BIN`：Codex CLI 路径，默认 `codex`。
-- `CODEX_APP_SERVER_SOCKET`：直接指定 app-server Unix socket，跳过 `codex app-server daemon version` 探测。
+- `CODEX_BIN`: path to the Codex CLI; defaults to `codex`.
+- `CODEX_APP_SERVER_SOCKET`: app-server Unix socket path; skips discovery through `codex app-server daemon version`.
 
-## 开发
+## Development
 
 ```bash
 npm test
 
-# 启动临时 app-server，通过真实 Codex MCP 客户端调用 list_timers
+# Start a temporary app-server and call list_timers through a real Codex MCP client.
 set_proxy
 npm run test:codex
 ```
