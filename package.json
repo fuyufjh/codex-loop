@@ -1,0 +1,18 @@
+{
+  "name": "codex-timer-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An in-memory MCP timer that queues messages back into the originating Codex thread.",
+  "bin": {
+    "codex-timer-mcp": "bin/codex-timer-mcp.mjs"
+  },
+  "scripts": {
+    "start": "node bin/codex-timer-mcp.mjs",
+    "test": "node --test test/*.test.mjs",
+    "test:codex": "node scripts/test-codex-compat.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
