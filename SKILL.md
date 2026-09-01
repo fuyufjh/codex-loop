@@ -39,4 +39,4 @@ Do not assume the MCP will detect completion or cancel automatically.
 
 ## Limits
 
-Intervals and delays must be between 1 second and 24 hours. Timers live only in the MCP process and disappear if the MCP, Codex, or app-server restarts. If a turn takes longer than its interval, further messages can queue up, so avoid intervals shorter than the work normally takes.
+Intervals and delays must be between 1 second and 24 hours. Timers are persisted and restored after an MCP process restart; a timer that became due while the process was stopped triggers once after recovery. An abrupt restart during delivery can cause the same delivery to be attempted again. If a turn takes longer than its interval, further messages can queue up, so avoid intervals shorter than the work normally takes.

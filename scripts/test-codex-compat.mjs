@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -9,6 +11,10 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const serverPath = path.join(projectRoot, "bin", "codex-timer-mcp.mjs");
 const codexBin = process.env.CODEX_BIN || "codex";
 const timeoutMs = 60_000;
+const temporaryDirectory = fs.mkdtempSync(
+  path.join(os.tmpdir(), "codex-timer-compat-"),
+);
+const stateFile = path.join(temporaryDirectory, "timers.json");
 
 const child = spawn(
   codexBin,
@@ -21,7 +27,11 @@ const child = spawn(
     "-c",
     "mcp_servers.codex_timer.tool_timeout_sec=10",
   ],
-  { cwd: projectRoot, stdio: ["pipe", "pipe", "pipe"] },
+  {
+    cwd: projectRoot,
+    env: { ...process.env, CODEX_TIMER_STATE_FILE: stateFile },
+    stdio: ["pipe", "pipe", "pipe"],
+  },
 );
 
 const stderr = [];
@@ -178,4 +188,5 @@ try {
 } finally {
   lines.close();
   child.kill("SIGTERM");
+  fs.rmSync(temporaryDirectory, { recursive: true, force: true });
 }

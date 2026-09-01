@@ -1,9 +1,9 @@
 {
   "name": "codex-timer-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "An in-memory MCP timer that queues messages back into the originating Codex thread.",
+  "description": "A persistent MCP timer that queues messages back into the originating Codex thread.",
   "bin": {
     "codex-timer-mcp": "bin/codex-timer-mcp.mjs"
   },

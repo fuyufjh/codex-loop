@@ -2,9 +2,9 @@
 
 English | [简体中文](README.zh.md)
 
-Codex Loop is an in-memory timer MCP for short-cycle tasks. When a timer fires, it calls the experimental Codex app-server method `thread/queue/add` to send a new user message back to the Codex thread that created the timer.
+Codex Loop is a persistent timer MCP for short-cycle tasks. When a timer fires, it calls the experimental Codex app-server method `thread/queue/add` to send a new user message back to the Codex thread that created the timer.
 
-It is designed for requests such as “remind me in 10 minutes” or “check every minute.” All state lives only in the MCP process; pending timers are lost if the MCP, Codex, or app-server restarts.
+It is designed for requests such as “remind me in 10 minutes” or “check every minute.” Pending timers are stored in an atomic JSON state file and restored when the MCP process restarts.
 
 ## Requirements
 
@@ -56,12 +56,15 @@ Codex 0.148.0 supplies the current thread ID in `_meta.threadId` on each MCP too
 - A recurring timer does not wait for the Codex turn created by its previous message to finish. Messages can accumulate if a turn takes longer than the interval.
 - `cancel_timer` prevents future deliveries only; it cannot retract messages already submitted to the Codex queue.
 - Failed deliveries are not retried. A recurring timer will attempt delivery again at its next interval.
+- Timers that became due while the MCP was stopped fire once as soon as it restarts. Recurring timers do not replay every missed interval.
+- An abrupt restart during delivery can cause that delivery to be attempted again. Messages are therefore delivered at least once across process failures, not exactly once.
 - `thread/queue/add` is an experimental Codex API.
 
 Optional environment variables:
 
 - `CODEX_BIN`: path to the Codex CLI; defaults to `codex`.
 - `CODEX_APP_SERVER_SOCKET`: app-server Unix socket path; skips discovery through `codex app-server daemon version`.
+- `CODEX_TIMER_STATE_FILE`: timer state file path. It defaults to `$CODEX_HOME/codex-timer/timers.json`, or `~/.codex/codex-timer/timers.json` when `CODEX_HOME` is unset.
 
 ## Development
 

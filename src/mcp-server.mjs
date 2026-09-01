@@ -1,9 +1,9 @@
 import readline from "node:readline";
 
 import { queueThreadMessage } from "./app-server-client.mjs";
-import { TimerService } from "./timer-service.mjs";
+import { defaultTimerStateFile, TimerService } from "./timer-service.mjs";
 
-const SERVER_INFO = { name: "codex-timer", version: "0.1.0" };
+const SERVER_INFO = { name: "codex-timer", version: "0.2.0" };
 const DEFAULT_PROTOCOL_VERSION = "2024-11-05";
 const DEFAULT_MAX_DELAY_SECONDS = 24 * 60 * 60;
 
@@ -12,7 +12,7 @@ const TOOLS = [
     name: "schedule_once",
     title: "Schedule one Codex message",
     description:
-      "Queue one user message into the current Codex thread after a short delay. The timer is in memory and is lost when this MCP server exits.",
+      "Persistently schedule one user message for the current Codex thread after a short delay.",
     inputSchema: {
       type: "object",
       properties: {
@@ -39,7 +39,7 @@ const TOOLS = [
     name: "schedule_interval",
     title: "Schedule recurring Codex messages",
     description:
-      "Queue a user message into the current Codex thread repeatedly at a short fixed interval. The first delivery occurs after one interval. The timer is in memory and is lost when this MCP server exits.",
+      "Persistently schedule a user message for the current Codex thread at a short fixed interval. The first delivery occurs after one interval.",
     inputSchema: {
       type: "object",
       properties: {
@@ -65,7 +65,7 @@ const TOOLS = [
   {
     name: "list_timers",
     title: "List Codex timers",
-    description: "List active in-memory timers for the current Codex thread.",
+    description: "List active persistent timers for the current Codex thread.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -77,7 +77,7 @@ const TOOLS = [
     name: "cancel_timer",
     title: "Cancel a Codex timer",
     description:
-      "Cancel an active in-memory timer owned by the current Codex thread. A message already handed to the Codex queue is not retracted.",
+      "Cancel an active persistent timer owned by the current Codex thread. A message already handed to the Codex queue is not retracted.",
     inputSchema: {
       type: "object",
       properties: {
@@ -110,8 +110,14 @@ export function startMcpServer({
           errorOutput.write(
             `[codex-timer] delivery failed for ${event.timer.id}: ${event.timer.lastError}\n`,
           );
+        } else if (event.type.startsWith("persistence_")) {
+          const timer = event.timer ? ` for ${event.timer.id}` : "";
+          errorOutput.write(
+            `[codex-timer] ${event.type}${timer}: ${event.error?.message || event.error}\n`,
+          );
         }
       },
+      stateFile: defaultTimerStateFile(),
     });
 
   const lines = readline.createInterface({ input, crlfDelay: Infinity, terminal: false });
@@ -169,7 +175,7 @@ async function handleLine(line, timerService, output) {
             capabilities: { tools: { listChanged: false } },
             serverInfo: SERVER_INFO,
             instructions:
-              "Use schedule_once for one future message and schedule_interval for short recurring messages. Timers are in memory and disappear when this MCP server stops.",
+              "Use schedule_once for one future message and schedule_interval for short recurring messages. Timers are persisted and restored when this MCP server restarts.",
           },
         });
         return;
